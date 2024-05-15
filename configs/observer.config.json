@@ -1,4 +1,7 @@
 {
+	"init_commands": [
+		"rm -rf /node_modules_cache/*; cp -r node_modules/* /node_modules_cache/"
+	],
 	"watchers": [
 		{
 			"label": "[Go]",

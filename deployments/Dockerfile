@@ -8,9 +8,6 @@ RUN go mod download && go mod verify
 
 
 
-
-# DEV
-FROM base AS dev
 WORKDIR /app
 LABEL description="Golang dev web server"
 ENV ENVIRONMENT "DEV"
@@ -20,18 +17,19 @@ RUN apt-get update &&\
     apt-get install -y --no-install-recommends vim \
     nodejs npm
 
-RUN go install github.com/liamrlawrence/observer/cmd/observer@34cbd81
 
 COPY configs/package.json configs/tsconfig.json configs/tsup.config.ts ./
 RUN npm install
 
+RUN go install github.com/liamrlawrence/observer/cmd/observer@74dd289
 COPY configs/observer.config.json .
 COPY Makefile .
 
-VOLUME [            \
-    "/app/cmd"      \
-    "/app/internal" \
-    "/app/static"   \
+VOLUME [                    \
+    "/app/cmd"              \
+    "/app/internal"         \
+    "/app/static"           \
+    "/node_modules_cache"   \
 ]
 EXPOSE 8080
 CMD ["observer", "-debug=true"]
