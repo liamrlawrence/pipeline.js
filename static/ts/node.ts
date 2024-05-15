@@ -2,6 +2,7 @@ import * as d3 from "d3";
 
 // Global state to keep track of CVFunction objects
 let cvFunctions: CVFunction[] = [];
+const cvFunctionCounts: { [key: string]: number } = {};
 
 // CANVAS //
 const canvasWidth: number = 1000,
@@ -72,19 +73,30 @@ class NodeConnector {
     line: d3.Selection<SVGLineElement, unknown, HTMLElement, any> | null;
     port: number;
 
+    nodeColor(ctype: ImageType) {
+        switch (ctype) {
+            case ImageType.ANY:
+                return 'purple';
+            case ImageType.IMAGE:
+                return 'blue';
+            case ImageType.MASK:
+                return 'red';
+        }
+    }
+
     constructor(ctype: ImageType, direction: ConnectorDirection, portNumber: number, parent: NodeBlock) {
         this.parent = parent;
+        this.ctype = ctype;
         this.element = g.append('circle')
                     .attr('cx', this.parent.x)
-                    .attr('cy',this.parent.y)
+                    .attr('cy', this.parent.y)
                     .attr('r', 4)
-                    .style('fill', 'white')
+                    .style('fill', this.nodeColor(this.ctype))
                     .style('stroke', 'black')
                     .classed('connector input', true);
         this.element.datum(this);
         this.port = portNumber;
         this.direction = direction;
-        this.ctype = ctype;
         this.connection = null;
         this.line = null;
 
@@ -151,7 +163,7 @@ class NodeConnector {
         if (
                 (!this.connection && !otherConnector.connection)
                 && (this.direction !== otherConnector.direction)
-                && (this.ctype === ImageType.ANY || otherConnector.ctype === ImageType.ANY || this.ctype === otherConnector.ctype)
+                && (this.ctype === otherConnector.ctype)
                 && (this.parent !== otherConnector.parent)
             ) {
 
@@ -188,8 +200,8 @@ class NodeConnector {
             this.connection.removeLine();
             this.removeLine();
 
-            this.connection.element?.style('fill', 'white');
-            this.element?.style('fill', 'white');
+            this.connection.element?.style('fill', this.nodeColor(this.ctype));
+            this.element?.style('fill', this.nodeColor(this.connection.ctype));
 
             this.connection.connection = null;
             this.connection = null;
@@ -204,7 +216,7 @@ class NodeConnector {
             x: +this.element.attr('cx'),
             y: +this.element.attr('cy'),
             connection: this.connection ? {
-                parentName: this.connection.parent.name,
+                parentID: this.connection.parent.ID,
                 port: this.connection.port
             } : null
         };
@@ -221,21 +233,51 @@ class NodeConnector {
     }
 }
 
+
+// Update the showPopup function to populate options
 function showPopup(x: number, y: number, node: NodeBlock) {
     const popup = d3.select('#popup');
     popup.style('left', `${x}px`).style('top', `${y}px`).style('display', 'block');
-    d3.select('#nodeValue').node().value = node.showOptions();
+
+    const optionsContainer = d3.select('#optionsContainer');
+    optionsContainer.selectAll('*').remove(); // Clear previous options
+
+    Object.entries(node.options).forEach(([key, value]) => {
+        const optionRow = optionsContainer.append('div');
+        optionRow.append('label')
+            .attr('for', `option-${key}`)
+            .text(key);
+        optionRow.append('input')
+            .attr('type', 'number')
+            .attr('id', `option-${key}`)
+            .attr('value', value as number)
+            .attr('name', key);
+    });
 
     d3.select('#valueForm').on('submit', function (event) {
-        //event.preventDefault();
-        //const newValue = d3.select('#nodeValue').node().value;
-        //node.setValue(newValue);
-        popup.style('display', 'none');  // Hide after update
+        event.preventDefault();
+        const formData = new FormData(this as HTMLFormElement);
+        formData.forEach((value, key) => {
+            node.options[key] = Number(value);
+        });
+        node.showOptions();
+        popup.style('display', 'none'); // Hide after update
+    });
+
+    // Add a one-time event listener to the document to hide the popup on outside click
+    d3.select(document).on('click.popup', function (event) {
+        const isClickInside = (popup.node() as HTMLElement).contains(event.target as Node);
+        if (!isClickInside) {
+            popup.style('display', 'none');
+            d3.select(document).on('click.popup', null); // Remove the document click listener
+        }
     });
 }
 
+
 class CVFunction {
     name: string;
+    ID: string;
     color: string;
     options: Options;
     node: NodeBlock;
@@ -243,12 +285,17 @@ class CVFunction {
     outputs: ImageType[];
 
     constructor(name: string, color: string, options: Options, x: number, y: number, inputs: ImageType[], outputs: ImageType[]) {
+        if (!cvFunctionCounts[name]) {
+            cvFunctionCounts[name] = 0;
+        }
+        cvFunctionCounts[name] += 1;
         this.name = name;
+        this.ID = `${name}-${cvFunctionCounts[name]}`;
         this.color = color;
         this.options = options;
         this.inputs = inputs;
         this.outputs = outputs;
-        this.node = new NodeBlock(this.name, this.color, this.options, x, y, this.inputs, this.outputs, false);
+        this.node = new NodeBlock(this.ID, this.color, this.options, x, y, this.inputs, this.outputs, false);
 
         // Add to global state
         cvFunctions.push(this);
@@ -256,7 +303,7 @@ class CVFunction {
 }
 
 class NodeBlock {
-    name: string;
+    ID: string;
     color: string;
     options: Options;
     x: number;
@@ -268,8 +315,8 @@ class NodeBlock {
     nodeElement: d3.Selection<SVGRectElement, unknown, HTMLElement, any>;
     enableGui: boolean;
 
-    constructor(name: string, color: string, options: Options, x: number, y: number, inputs: ImageType[], outputs: ImageType[], enableGui: boolean) {
-        this.name = name;
+    constructor(ID: string, color: string, options: Options, x: number, y: number, inputs: ImageType[], outputs: ImageType[], enableGui: boolean) {
+        this.ID = ID;
         this.color = color;
         this.options = options;
         this.x = x;
@@ -311,7 +358,7 @@ class NodeBlock {
     }
 
     showOptions() {
-       return JSON.stringify(this.options);
+        return JSON.stringify(this.options);
     }
 
     draw(): void {
@@ -332,7 +379,7 @@ class NodeBlock {
             .attr('y', this.y + this.height / 2)
             .attr('dy', '.35em') // Vertical align middle
             .attr('text-anchor', 'middle') // Horizontal align center
-            .text(this.name);
+            .text(this.ID);
     }
 
     startDrag(event): void {
@@ -378,7 +425,7 @@ class NodeBlock {
 
     toJSON() {
         return {
-            name: this.name,
+            ID: this.ID,
             color: this.color,
             options: this.options,
             x: this.x,
@@ -390,7 +437,7 @@ class NodeBlock {
 
     static fromJSON(data: any) {
         const nodeBlock = new NodeBlock(
-            data.name,
+            data.ID,
             data.color,
             data.options,
             data.x,
@@ -407,6 +454,7 @@ class NodeBlock {
 function saveCanvas() {
     const state = cvFunctions.map(func => ({
         name: func.name,
+        ID: func.ID,
         color: func.color,
         options: func.options,
         node: func.node.toJSON()
@@ -426,6 +474,11 @@ function loadCanvas() {
 
     const state = JSON.parse(json);
     clearCanvas();
+
+    // Create a mapping of IDs to CVFunction objects
+    const idToFunction: { [key: string]: CVFunction } = {};
+
+    // First, recreate all CVFunction objects without restoring connections
     state.forEach((funcState: any) => {
         const cvFunction = new CVFunction(
             funcState.name,
@@ -436,13 +489,17 @@ function loadCanvas() {
             funcState.node.inputs.map(input => input.ctype),
             funcState.node.outputs.map(output => output.ctype)
         );
+        idToFunction[cvFunction.ID] = cvFunction;
+    });
 
-        // Restore connections
+    // Then, restore all connections
+    state.forEach((funcState: any) => {
+        const cvFunction = idToFunction[funcState.ID];
         funcState.node.inputs.forEach((inputData: any, index: number) => {
             if (inputData.connection) {
-                const targetFunc = cvFunctions.find(f => f.name === inputData.connection.parentName);
-                if (targetFunc) {
-                    const targetConnector = targetFunc.node.outputs.find(output => output.port === inputData.connection.port);
+                const targetFunction = idToFunction[inputData.connection.parentID];
+                if (targetFunction) {
+                    const targetConnector = targetFunction.node.outputs.find(output => output.port === inputData.connection.port);
                     if (targetConnector) {
                         cvFunction.node.inputs[index].connect(targetConnector);
                     }
@@ -459,11 +516,14 @@ function clearCanvas() {
         func.node.outputs.forEach(connector => connector.cleanup());
     });
     cvFunctions = [];
+    // Reset the counts
+    for (const key in cvFunctionCounts) {
+        if (cvFunctionCounts.hasOwnProperty(key)) {
+            cvFunctionCounts[key] = 0;
+        }
+    }
+    console.log(cvFunctions);
 }
-
-// Connect buttons to save and load functions
-document.getElementById("saveButton").addEventListener("click", saveCanvas);
-document.getElementById("loadButton").addEventListener("click", loadCanvas);
 
 // HANDLERS
 const shapes = d3.selectAll('.shape');
@@ -496,10 +556,6 @@ function snapToGrid(coordinate: number, gridSize: number): number {
         : nearestHigher;
 }
 
-function createNodeBlock(x: number, y: number, color: string): void {
-    const nodeBlock = new NodeBlock(color, x, y, 50, 50, 3, 2, false);
-}
-
 interface Options {
     [key: string]: number;
 }
@@ -507,14 +563,28 @@ interface Options {
 // CVFunction templates for the drawer
 const cvFunctionTemplates: { name: string, color: string, options: Options, inputs: ImageType[], outputs: ImageType[] }[] = [
     {
+        name: "Input",
+        color: "silver",
+        options: {},
+        inputs: [],
+        outputs: [ImageType.IMAGE]
+    },
+    {
+        name: "Output",
+        color: "silver",
+        options: {},
+        inputs: [ImageType.IMAGE],
+        outputs: []
+    },
+    {
         name: "Blur",
         color: "blue",
         options: {
             "kernelSize": 0,
             "strength": 50
         },
-        inputs: [ImageType.ANY],
-        outputs: [ImageType.ANY]
+        inputs: [ImageType.IMAGE],
+        outputs: [ImageType.IMAGE]
     },
     {
         name: "Threshold",
@@ -536,8 +606,15 @@ const cvFunctionTemplates: { name: string, color: string, options: Options, inpu
         options: {
             "min_area": 400,
         },
-        inputs: [ImageType.ANY],
+        inputs: [ImageType.IMAGE],
         outputs: [ImageType.IMAGE, ImageType.MASK]
+    },
+    {
+        name: "Bitwise AND",
+        color: "teal",
+        options: {},
+        inputs: [ImageType.MASK, ImageType.IMAGE],
+        outputs: [ImageType.IMAGE]
     },
 ];
 
@@ -553,4 +630,10 @@ cvFunctionTemplates.forEach((template) => {
             event.dataTransfer.setData("function-name", template.name);
         });
 });
+
+
+// Connect buttons to save and load functions
+document.getElementById("saveButton").addEventListener("click", saveCanvas);
+document.getElementById("loadButton").addEventListener("click", loadCanvas);
+document.getElementById("clearButton")?.addEventListener("click", clearCanvas);
 

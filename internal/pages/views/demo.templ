@@ -14,11 +14,11 @@ templ PageDemo() {
 		<div id="drawer"></div>
 		<button id="saveButton">Save Canvas</button>
 		<button id="loadButton">Load Canvas</button>
+		<button id="clearButton">Clear Canvas</button>
 		<script src="/static/dist/node.mjs"></script>
 		<div id="popup" style="display:none; position: absolute; border: 1px solid black; background: white; padding: 10px;">
 			<form id="valueForm">
-				<label for="nodeValue">Value:</label>
-				<input type="text" id="nodeValue" name="nodeValue"></input>
+				<div id="optionsContainer"></div>
 				<button type="submit">Update</button>
 			</form>
 		</div>

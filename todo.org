@@ -1,33 +1,39 @@
-* Different nodes for
-    - input (const)
-    - output (const)
-    - blur
-        - 1 in (any, image)
-        - 1 out (any, image)
-        - 2 sliders
-    - hsv
-        - 1 in (bgr, image)
-        - 1 out (bgr, image)
-        - 6 sliders
-    - find_countours_minEclosingCircle
-
-
-    - dilation
-    - find_countours_convexHull
-    - clahe
-
-    - bitwise_and
-
-
-* TODO Options
-** Parameter type ENUM [3/3]
-    - [X] color: CV8U3 / GRAY / BGR / HSV
+* TODO TypeScript [1/4]
+  - [-] options [2/3]
     - [X] type: IMAGE, MASK
-    - [X] connector direction
-    enable_gui: True
+    - [X] direction: INPUT, OUTPUT
+    - [ ] enable_gui: flag
+  - [X] Floating popup to edit options
+  - [ ] Toggle gui button on Block?
+  - [ ] Pipeline Objects [0/1]
+    - [ ] Group nodes
 
 
-* Save configuration
-    -
+* TODO Save configuration [0/2]
+  - [-] Save [1/2]
+    - [X] Save to browser
+    - [ ] Save to file
+  - [-] Load [1/3]
+    - [X] Load from browser
+    - [ ] Load from file
+    - [ ] Default load, automatically assign (x,y)
 
+
+* TODO Python Parser [1/2]
+  - [X] Parse save-string
+  - [ ] Construct pipeline & execute
+
+
+* TODO Aesthetics [0/2]
+  - [ ] NodeBlocks [0/2]
+    - [ ] Text on block names
+    - [ ] Better looking
+  - [ ] Drawer [0/2]
+    - [ ] Categories
+    - [ ] Better looking
+
+
+* TODO Streamlit [0/2]
+  - [ ] Run JS node window
+  - [ ] Use JS node window to update options
 
