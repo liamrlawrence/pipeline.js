@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 
+
 // Global state to keep track of CVFunction objects
 let cvFunctions: CVFunction[] = [];
 const cvFunctionCounts: { [key: string]: number } = {};
@@ -170,7 +171,7 @@ class NodeConnector {
             // Connect together
             this.connection = otherConnector;
             otherConnector.connection = this;
-            console.log("Connected!");
+            //console.log("Connected!");
 
             // Determine start vs end
             const startConnector = this.direction === ConnectorDirection.INPUT ? otherConnector : this;
@@ -314,6 +315,8 @@ class NodeBlock {
     outputs: NodeConnector[];
     nodeElement: d3.Selection<SVGRectElement, unknown, HTMLElement, any>;
     enableGui: boolean;
+    lastX: number;
+    lastY: number;
 
     constructor(ID: string, color: string, options: Options, x: number, y: number, inputs: ImageType[], outputs: ImageType[], enableGui: boolean) {
         this.ID = ID;
@@ -321,6 +324,8 @@ class NodeBlock {
         this.options = options;
         this.x = x;
         this.y = y;
+        this.lastX = x;
+        this.lastY = y;
         this.width = 50;        // TODO: Calculate based on inputs
         this.height = 50;
         this.inputs = [];
@@ -386,22 +391,147 @@ class NodeBlock {
         d3.select(this.nodeElement.node()).classed('dragging', true);
     }
 
+
+
     drag(event): void {
-        const newX = event.x - this.width / 2;
-        const newY = event.y - this.height / 2;
+        let newX = event.x - this.width / 2;
+        let newY = event.y - this.height / 2;
+
+        const collision = this.detectCollision(newX, newY);
+        if (collision) {
+            const { node, direction } = collision;
+            switch (direction) {
+                case 'left':
+                    newX = node.x - this.width;
+                    break;
+                case 'right':
+                    newX = node.x + node.width;
+                    break;
+                case 'top':
+                    newY = node.y - this.height;
+                    break;
+                case 'bottom':
+                    newY = node.y + node.height;
+                    break;
+            }
+
+            // Check for further collisions in the sliding direction with a limit
+            const maxAttempts = 100;
+            let attempt = 0;
+            let furtherCollision = this.detectCollision(newX, newY);
+            while (furtherCollision && attempt < maxAttempts) {
+                const { node: furtherNode, direction: furtherDirection } = furtherCollision;
+                switch (furtherDirection) {
+                    case 'left':
+                        newX = furtherNode.x - this.width;
+                        break;
+                    case 'right':
+                        newX = furtherNode.x + furtherNode.width;
+                        break;
+                    case 'top':
+                        newY = furtherNode.y - this.height;
+                        break;
+                    case 'bottom':
+                        newY = furtherNode.y + furtherNode.height;
+                        break;
+                }
+                furtherCollision = this.detectCollision(newX, newY);
+                attempt++;
+            }
+        }
+
         this.x = newX;
         this.y = newY;
+        this.lastX = newX;
+        this.lastY = newY;
         this.updatePosition();
     }
 
     endDrag(event): void {
         const snappedX = snapToGrid(event.x, gridSize) - this.width / 2;
         const snappedY = snapToGrid(event.y, gridSize) - this.height / 2;
-        this.x = snappedX;
-        this.y = snappedY;
+
+        let newX = snappedX;
+        let newY = snappedY;
+
+        const collision = this.detectCollision(newX, newY);
+        if (collision) {
+            const { node, direction } = collision;
+            switch (direction) {
+                case 'left':
+                    newX = node.x - this.width;
+                    break;
+                case 'right':
+                    newX = node.x + node.width;
+                    break;
+                case 'top':
+                    newY = node.y - this.height;
+                    break;
+                case 'bottom':
+                    newY = node.y + node.height;
+                    break;
+            }
+
+            // Check for further collisions in the sliding direction
+            const maxAttempts = 100;
+            let attempt = 0;
+            let furtherCollision = this.detectCollision(newX, newY);
+            while (furtherCollision && attempt < maxAttempts) {
+                const { node: furtherNode, direction: furtherDirection } = furtherCollision;
+                switch (furtherDirection) {
+                    case 'left':
+                        newX = furtherNode.x - this.width;
+                        break;
+                    case 'right':
+                        newX = furtherNode.x + furtherNode.width;
+                        break;
+                    case 'top':
+                        newY = furtherNode.y - this.height;
+                        break;
+                    case 'bottom':
+                        newY = furtherNode.y + furtherNode.height;
+                        break;
+                }
+                furtherCollision = this.detectCollision(newX, newY);
+                attempt++;
+            }
+        }
+
+        this.x = newX;
+        this.y = newY;
+        this.lastX = newX;
+        this.lastY = newY;
         this.updatePosition();
         d3.select(this.nodeElement.node()).classed('dragging', false);
     }
+
+    detectCollision(x: number, y: number): { node: NodeBlock, direction: 'left' | 'right' | 'top' | 'bottom' } | null {
+        for (const func of cvFunctions) {
+            if (func.node !== this) {
+                const node = func.node;
+                if (
+                    x < node.x + node.width &&
+                    x + this.width > node.x &&
+                    y < node.y + node.height &&
+                    y + this.height > node.y
+                ) {
+                    const leftOverlap = x + this.width - node.x;
+                    const rightOverlap = node.x + node.width - x;
+                    const topOverlap = y + this.height - node.y;
+                    const bottomOverlap = node.y + node.height - y;
+
+                    const minOverlap = Math.min(leftOverlap, rightOverlap, topOverlap, bottomOverlap);
+
+                    if (minOverlap === leftOverlap) return { node, direction: 'left' };
+                    if (minOverlap === rightOverlap) return { node, direction: 'right' };
+                    if (minOverlap === topOverlap) return { node, direction: 'top' };
+                    if (minOverlap === bottomOverlap) return { node, direction: 'bottom' };
+                }
+            }
+        }
+        return null;
+    }
+
 
     updatePosition(): void {
         this.nodeElement.attr('x', this.x).attr('y', this.y);
@@ -632,8 +762,95 @@ cvFunctionTemplates.forEach((template) => {
 });
 
 
+
+// Save the canvas state to a file
+function saveCanvasToFile() {
+    const state = cvFunctions.map(func => ({
+        name: func.name,
+        ID: func.ID,
+        color: func.color,
+        options: func.options,
+        node: func.node.toJSON()
+    }));
+
+    const json = JSON.stringify(state);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "canvasState.json";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+
+// Load the canvas state from a file and add to the existing state
+function loadCanvasFromFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const json = e.target?.result as string;
+        const state = JSON.parse(json);
+
+        // Create a mapping of old IDs to new IDs and CVFunction objects
+        const oldToNewIDMap: { [key: string]: string } = {};
+        const idToFunction: { [key: string]: CVFunction } = {};
+
+        // First, recreate all CVFunction objects without restoring connections
+        state.forEach((funcState: any) => {
+            const cvFunction = new CVFunction(
+                funcState.name,
+                funcState.color,
+                funcState.options,
+                funcState.node.x,
+                funcState.node.y,
+                funcState.node.inputs.map((input: any) => input.ctype),
+                funcState.node.outputs.map((output: any) => output.ctype)
+            );
+            idToFunction[cvFunction.ID] = cvFunction;
+            oldToNewIDMap[funcState.ID] = cvFunction.ID
+        });
+
+        console.log(oldToNewIDMap);
+
+        // Then, restore all connections
+        state.forEach((funcState: any) => {
+            const newID = oldToNewIDMap[funcState.ID];
+            const cvFunction = idToFunction[newID];
+            funcState.node.inputs.forEach((inputData: any, index: number) => {
+                if (inputData.connection) {
+                    const targetOldID = inputData.connection.parentID;
+                    const targetNewID = oldToNewIDMap[targetOldID];
+                    const targetFunction = idToFunction[targetNewID];
+                    if (targetFunction) {
+                        const targetConnector = targetFunction.node.outputs.find(output => output.port === inputData.connection.port);
+                        if (targetConnector) {
+                            cvFunction.node.inputs[index].connect(targetConnector);
+                        }
+                    }
+                }
+            });
+        });
+
+        // Allow the same file to be loaded again
+        input.value = '';
+    };
+    reader.readAsText(file);
+}
+
+
+
 // Connect buttons to save and load functions
 document.getElementById("saveButton").addEventListener("click", saveCanvas);
 document.getElementById("loadButton").addEventListener("click", loadCanvas);
 document.getElementById("clearButton")?.addEventListener("click", clearCanvas);
+document.getElementById("saveToFileButton").addEventListener("click", saveCanvasToFile);
+document.getElementById("fileInput").addEventListener("change", loadCanvasFromFile);
+document.getElementById("loadFromFileButton").addEventListener("click", () => {
+    document.getElementById("fileInput").click();
+});
 
