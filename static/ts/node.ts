@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 
-
+// Global state to keep track of nodes and connections
+const globalState: { nodes: any[]; connections: any[] } = { nodes: [], connections: [] };
 
 // CANVAS //
 const canvasWidth: number = 1000,
@@ -30,25 +31,33 @@ const zoom: d3.ZoomBehavior<Element, unknown> = d3.zoom<Element, unknown>()
 // Apply the zoom behavior to the SVG
 svg.call(zoom as any);
 
-// Drawing grid lines
-for (let i = 0; i <= numColumns; i++) {
-    g.append("line")
-        .attr("x1", i * gridSize)
-        .attr("y1", 0)
-        .attr("x2", i * gridSize)
-        .attr("y2", canvasHeight)
-        .style("stroke", "lightgrey")
-        .style("stroke-width", "1px");
+
+// Function to draw the grid lines
+function drawGrid() {
+    for (let i = 0; i <= numColumns; i++) {
+        g.append("line")
+            .attr("x1", i * gridSize)
+            .attr("y1", 0)
+            .attr("x2", i * gridSize)
+            .attr("y2", canvasHeight)
+            .style("stroke", "lightgrey")
+            .style("stroke-width", "1px");
+    }
+    for (let i = 0; i <= numRows; i++) {
+        g.append("line")
+            .attr("x1", 0)
+            .attr("y1", i * gridSize)
+            .attr("x2", canvasWidth)
+            .attr("y2", i * gridSize)
+            .style("stroke", "lightgrey")
+            .style("stroke-width", "1px");
+    }
 }
-for (let i = 0; i <= numRows; i++) {
-    g.append("line")
-        .attr("x1", 0)
-        .attr("y1", i * gridSize)
-        .attr("x2", canvasWidth)
-        .attr("y2", i * gridSize)
-        .style("stroke", "lightgrey")
-        .style("stroke-width", "1px");
-}
+drawGrid();
+
+
+
+
 
 // NODE CLASS
 enum ImageType {
@@ -75,7 +84,7 @@ class NodeConnector {
         this.parent = parent;
         this.element = g.append('circle')
                     .attr('cx', this.parent.x)
-                    .attr('cy',this.parent.y)
+                    .attr('cy', this.parent.y)
                     .attr('r', 4)
                     .style('fill', 'white')
                     .style('stroke', 'black')
@@ -122,7 +131,6 @@ class NodeConnector {
     }
 
     mouseUpHandler(event: MouseEvent, originalConnector: NodeConnector) {
-        // TODO: Sometime line is over connector I think so it blocks the click?
         const elements = document.elementsFromPoint(event.clientX, event.clientY);
         const targetElement = elements.find(el => el.classList.contains('connector'));
         let targetConnector: NodeConnector | null = null;
@@ -151,7 +159,6 @@ class NodeConnector {
                 .on('mouseup.connector', null);
         }
     }
-
 
     connect(otherConnector: NodeConnector) {
         if (
@@ -184,6 +191,11 @@ class NodeConnector {
             startConnector.line = connectionLine;
             endConnector.line = connectionLine;
 
+            // Save connection to global state
+            globalState.connections.push({
+                start: { node: startConnector.parent.name, port: startConnector.port },
+                end: { node: endConnector.parent.name, port: endConnector.port }
+            });
         } else {
             throw new Error("Cannot connect these connectors.");
         }
@@ -199,13 +211,15 @@ class NodeConnector {
 
             this.connection.connection = null;
             this.connection = null;
+
+            // Remove connection from global state
+            globalState.connections = globalState.connections.filter(conn =>
+                !(conn.start.node === this.parent.name && conn.start.port === this.port) &&
+                !(conn.end.node === this.parent.name && conn.end.port === this.port)
+            );
         }
     }
 }
-
-
-
-
 
 function showPopup(x: number, y: number, node: NodeBlock) {
     const popup = d3.select('#popup');
@@ -213,14 +227,12 @@ function showPopup(x: number, y: number, node: NodeBlock) {
     d3.select('#nodeValue').node().value = node.showOptions();
 
     d3.select('#valueForm').on('submit', function (event) {
-        //event.preventDefault();
-        //const newValue = d3.select('#nodeValue').node().value;
-        //node.setValue(newValue);
+        event.preventDefault();
+        const newValue = d3.select('#nodeValue').node().value;
+        node.setValue(newValue);
         popup.style('display', 'none');  // Hide after update
     });
 }
-
-
 
 class CVFunction {
     name: string;
@@ -237,12 +249,13 @@ class CVFunction {
         this.inputs = inputs;
         this.outputs = outputs;
         this.node = new NodeBlock(this.name, this.color, this.options, x, y, this.inputs, this.outputs, false);
+
+        // Save node to global state
+        globalState.nodes.push(this.node.toJSON());
     }
 }
 
-
 class NodeBlock {
-    id: string;
     name: string;
     color: string;
     options: Options;
@@ -256,8 +269,7 @@ class NodeBlock {
     enableGui: boolean;
 
     constructor(name: string, color: string, options: Options, x: number, y: number, inputs: ImageType[], outputs: ImageType[], enableGui: boolean) {
-        this.id = `node-${Math.random().toString(36).substr(2, 9)}`;
-        this.name = name
+        this.name = name;
         this.color = color;
         this.options = options;
         this.x = x;
@@ -299,7 +311,11 @@ class NodeBlock {
     }
 
     showOptions() {
-       return JSON.stringify(this.options);
+        return JSON.stringify(this.options);
+    }
+
+    setValue(newValue: string) {
+        this.options = JSON.parse(newValue);
     }
 
     draw(): void {
@@ -355,7 +371,7 @@ class NodeBlock {
             }
         });
         this.outputs.forEach((output, index) => {
-            const cx = this.x + this.width
+            const cx = this.x + this.width;
             const cy = this.y + this.height / (this.outputs.length + 1) * (index + 1);
             output.element.attr('cx', cx).attr('cy', cy);
             if (output.connection && output.line) {
@@ -363,13 +379,27 @@ class NodeBlock {
             }
         });
     }
+
+    toJSON() {
+        return {
+            name: this.name,
+            color: this.color,
+            options: this.options,
+            x: this.x,
+            y: this.y,
+            inputs: this.inputs.map(input => ({ type: input.type, port: input.port })),
+            outputs: this.outputs.map(output => ({ type: output.type, port: output.port }))
+        };
+    }
+
+    static fromJSON(json: any) {
+        const node = new NodeBlock(json.name, json.color, json.options, json.x, json.y, json.inputs.map(i => i.type), json.outputs.map(o => o.type), false);
+        node.inputs = json.inputs.map(input => new NodeConnector(input.type, ConnectorDirection.INPUT, input.port, node));
+        node.outputs = json.outputs.map(output => new NodeConnector(output.type, ConnectorDirection.OUTPUT, output.port, node));
+        node.updatePosition();
+        return node;
+    }
 }
-
-
-
-
-
-
 
 // HANDLERS
 const shapes = d3.selectAll('.shape');
@@ -378,7 +408,6 @@ shapes.on('dragstart', (event, d) => {
 
     event.dataTransfer.setData('color', shape.style('background-color'));
 });
-
 
 svg.on('dragover', (event) => {
     event.preventDefault();  // Necessary to allow dropping
@@ -403,19 +432,14 @@ function snapToGrid(coordinate: number, gridSize: number): number {
         : nearestHigher;
 }
 
-
-
-
-
 function createNodeBlock(x: number, y: number, color: string): void {
     const nodeBlock = new NodeBlock(color, x, y, 50, 50, 3, 2, false);
 }
 
-
-
 interface Options {
     [key: string]: number;
 }
+
 // CVFunction templates for the drawer
 const cvFunctionTemplates: { name: string, color: string, options: Options, inputs: ImageType[], outputs: ImageType[] }[] = [
     {
@@ -453,8 +477,6 @@ const cvFunctionTemplates: { name: string, color: string, options: Options, inpu
     },
 ];
 
-
-
 const drawer = d3.select("#drawer");
 
 cvFunctionTemplates.forEach((template) => {
@@ -468,97 +490,53 @@ cvFunctionTemplates.forEach((template) => {
         });
 });
 
-
-
-
-
-
-
-
-
-
-
-// Save the current state of the canvas
-function saveCanvasState(): void {
-    const nodes: any[] = [];
-    g.selectAll<SVGRectElement, NodeBlock>('rect').each(function(d: NodeBlock) {
-        nodes.push({
-            name: d.name,
-            color: d.color,
-            options: d.options,
-            x: d.x,
-            y: d.y,
-            inputs: d.inputs.map(input => ({
-                type: input.type,
-                port: input.port,
-                connection: input.connection ? {
-                    parentName: input.connection.parent.name,
-                    direction: input.connection.direction,
-                    port: input.connection.port
-                } : null
-            })),
-            outputs: d.outputs.map(output => ({
-                type: output.type,
-                port: output.port,
-                connection: output.connection ? {
-                    parentName: output.connection.parent.name,
-                    direction: output.connection.direction,
-                    port: output.connection.port
-                } : null
-            }))
-        });
-    });
-
-    const canvasState = JSON.stringify(nodes);
-    localStorage.setItem('canvasState', canvasState);
-    console.log("Canvas state saved:", canvasState);
+// Functions to save and load the state
+function saveState() {
+    const state = JSON.stringify(globalState);
+    console.log(state);
+    localStorage.setItem('canvasState', state);
 }
 
-// Load the state of the canvas
-function loadCanvasState(): void {
-    const canvasState = localStorage.getItem('canvasState');
-    if (canvasState) {
-        const nodes = JSON.parse(canvasState);
-        nodes.forEach(nodeData => {
-            const cvFunction = new CVFunction(
-                nodeData.name,
-                nodeData.color,
-                nodeData.options,
-                nodeData.x,
-                nodeData.y,
-                nodeData.inputs.map(input => input.type),
-                nodeData.outputs.map(output => output.type)
-            );
-            cvFunction.node.inputs.forEach((input, index) => {
-                const connectionData = nodeData.inputs[index].connection;
-                if (connectionData) {
-                    const targetNode = nodes.find(n => n.name === connectionData.parentName);
-                    if (targetNode) {
-                        const targetConnector = connectionData.direction === ConnectorDirection.INPUT
-                            ? targetNode.inputs.find(input => input.port === connectionData.port)
-                            : targetNode.outputs.find(output => output.port === connectionData.port);
-                        input.connect(targetConnector);
-                    }
-                }
-            });
-            cvFunction.node.outputs.forEach((output, index) => {
-                const connectionData = nodeData.outputs[index].connection;
-                if (connectionData) {
-                    const targetNode = nodes.find(n => n.name === connectionData.parentName);
-                    if (targetNode) {
-                        const targetConnector = connectionData.direction === ConnectorDirection.INPUT
-                            ? targetNode.inputs.find(input => input.port === connectionData.port)
-                            : targetNode.outputs.find(output => output.port === connectionData.port);
-                        output.connect(targetConnector);
-                    }
-                }
-            });
+function loadState() {
+    const state = localStorage.getItem('canvasState');
+    if (state) {
+        const parsedState = JSON.parse(state);
+
+        // Clear current canvas and global state
+        g.selectAll('*').remove();
+        globalState.nodes = [];
+        globalState.connections = [];
+
+        // Redraw the grid
+        drawGrid();
+
+        // Redraw nodes
+        const nodes = parsedState.nodes.map((nodeData: any) => NodeBlock.fromJSON(nodeData));
+
+        nodes.forEach((node: NodeBlock) => {
+            globalState.nodes.push(node.toJSON());  // Ensure the nodes are correctly added back to globalState
         });
-        console.log("Canvas state loaded:", nodes);
+
+        // Redraw connections
+        parsedState.connections.forEach((connData: any) => {
+            const startNode = nodes.find((node: NodeBlock) => node.name === connData.start.node);
+            const endNode = nodes.find((node: NodeBlock) => node.name === connData.end.node);
+            if (startNode && endNode) {
+                const startConnector = startNode.outputs.find((output: NodeConnector) => output.port === connData.start.port);
+                const endConnector = endNode.inputs.find((input: NodeConnector) => input.port === connData.end.port);
+                if (startConnector && endConnector) {
+                    startConnector.connect(endConnector);
+                }
+            }
+        });
     }
 }
 
-// Add buttons for saving and loading the state
-const saveButton = d3.select("#save-button").on("click", saveCanvasState);
-const loadButton = d3.select("#load-button").on("click", loadCanvasState);
+
+// Add buttons to save and load the state
+const saveButton = d3.select("#saveButton");
+saveButton.on("click", saveState);
+
+const loadButton = d3.select("#loadButton");
+loadButton.on("click", loadState);
 
