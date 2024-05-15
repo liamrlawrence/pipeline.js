@@ -1,0 +1,15 @@
+package components
+
+
+templ PageFooter() {
+	<footer class="footer">
+		<p>Copyright &copy; <span id="footer-year"></span> Grimoire Solutions</p>
+		<a href="https://www.grimoire.foo/about">About Us</a> |
+		<a href="https://www.grimoire.foo/privacy">Privacy Policy</a> |
+		<a href="https://www.grimoire.foo/contact">Contact</a>
+		<script>
+			document.getElementById("footer-year").textContent = new Date().getFullYear();
+		</script>
+	</footer>
+}
+

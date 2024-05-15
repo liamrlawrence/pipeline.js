@@ -1,0 +1,20 @@
+{
+	"watchers": [
+		{
+			"label": "[Go]",
+			"extensions": [".go", ".templ"],
+			"ignore_patterns": ["_templ\\.go"],
+			"include_dir": ["cmd", "internal"],
+			"build_command": "make go",
+			"run_command": "./tmp/main"
+		},
+		{
+			"label": "[Web]",
+			"extensions": [".ts"],
+			"ignore": [],
+			"dir": ".",
+			"build_command": "make ts"
+		}
+	]
+}
+

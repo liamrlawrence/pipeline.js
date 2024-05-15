@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "js-cookie": "^3.0.5"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20.10.5",
+    "d3": "^7.9.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  }
+}

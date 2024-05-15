@@ -1,0 +1,32 @@
+Different nodes for
+    - input (const)
+    - output (const)
+    - blur
+        - 1 in (any, image)
+        - 1 out (any, image)
+        - 2 sliders
+    - hsv
+        - 1 in (bgr, image)
+        - 1 out (bgr, image)
+        - 6 sliders
+    - find_countours_minEclosingCircle
+
+
+    - dilation
+    - find_countours_convexHull
+    - clahe
+
+    - bitwise_and
+
+
+Options for
+    - Parameter type ENUM
+        color: CV8U3 / GRAY / BGR / HSV
+        type: IMAGE, MASK
+
+    enable_gui: True
+
+
+Save configuration
+    -
+

@@ -1,0 +1,43 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column; /* Ensures the drawer is below the canvas */
+}
+
+#canvas-container {
+    width: 1000px;
+    height: 700px;
+    overflow: hidden;
+    border: 1px black;
+}
+
+#drawer {
+    width: 1000px;
+    height: 100px;
+    overflow-x: scroll;
+    border: 1px solid black;
+    display: flex;
+    align-items: center;
+    background-color: #f8f8f8; /* Adds a background color to make it visible */
+}
+
+.cv-function {
+    width: 100px;
+    height: 50px;
+    margin: 10px;
+    cursor: grab;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.dragging {
+    opacity: 0.5;
+    z-index: 1000; /* Very high z-index to ensure it's above everything else when dragging */
+}
+

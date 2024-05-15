@@ -1,0 +1,10 @@
+*.png
+*.jpg
+*.ico
+
+go.sum
+*_templ.go
+
+*.mjs
+*.mjs.map
+

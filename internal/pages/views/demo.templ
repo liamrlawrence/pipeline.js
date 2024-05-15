@@ -1,0 +1,28 @@
+package views
+
+
+templ PageDemo() {
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8"></meta>
+		<title>D3 Canvas with Gridlines and Draggable CVFunctions</title>
+		<link rel="stylesheet" type="text/css" href="/static/css/styles.css"></link>
+	</head>
+	<body>
+		<div id="canvas-container"></div>
+		<div id="drawer"></div>
+		<button id="save-button">Save Canvas</button>
+		<button id="load-button">Load Canvas</button>
+		<script src="/static/dist/node.mjs"></script>
+		<div id="popup" style="display:none; position: absolute; border: 1px solid black; background: white; padding: 10px;">
+			<form id="valueForm">
+				<label for="nodeValue">Value:</label>
+				<input type="text" id="nodeValue" name="nodeValue"></input>
+				<button type="submit">Update</button>
+			</form>
+		</div>
+	</body>
+	</html>
+}
+

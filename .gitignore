@@ -1,0 +1,9 @@
+*.env
+*_templ.go
+
+node_modules/
+
+static/dist
+*.mjs
+*.map
+

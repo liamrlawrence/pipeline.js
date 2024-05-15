@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Liam File Upload with Go and HTMX</title>
+    <script src="https://unpkg.com/htmx.org"></script>
+</head>
+<body>
+
+<form id="form" hx-encoding="multipart/form-data" hx-post="/upload" hx-target="#qcSection" hx-swap="outerHTML">
+    <input type="file" name="file">
+    <button type="submit">Upload</button>
+    <progress id="progress" value="0" max="100"></progress>
+</form>
+
+<div id="qcSection">
+    <!-- QC step content will be loaded here -->
+</div>
+
+<script>
+htmx.on('#form', 'htmx:xhr:progress', function(evt) {
+    document.getElementById('progress').value = evt.detail.loaded / evt.detail.total * 100;
+});
+</script>
+
+</body>
+</html>
+
+

@@ -1,0 +1,52 @@
+package components
+
+
+templ PageNavigation() {
+	<nav class="left-navbar">
+		<div class="nav-item">
+			<button class="toggle-button"><span class="icon">&#9776;</span></button> <!-- Hamburger icon -->
+		</div>
+		<a href="#home" class="nav-link"><span class="icon">&#8962;</span><span class="text">Home</span></a>
+		<a href="#about" class="nav-link"><span class="icon">&#8505;</span><span class="text">About</span></a>
+		<div class="nav-link">
+			<span class="icon">&#128640;</span><span class="text">Services</span>
+			<div class="submenu">
+				<a href="#service1">Service 1</a>
+				<a href="#service2">Service 2</a>
+				<a href="#service3">Service 3</a>
+			</div>
+		</div>
+		<a href="#contact" class="nav-link"><span class="icon">&#9993;</span><span class="text">Contact</span></a>
+	</nav>
+
+
+
+	<script>
+		document.addEventListener('DOMContentLoaded', function() {
+			const services = document.querySelector('.nav-link > div');
+			const navbar = document.querySelector('.left-navbar');
+
+			// Event listener for toggling submenus
+			services.parentElement.addEventListener('click', function() {
+				const submenu = this.querySelector('.submenu');
+				submenu.style.display = submenu.style.display === 'block' ? 'none' : 'block';
+				navbar.classList.remove('collapsed');
+			});
+
+			const toggleButton = document.querySelector('.toggle-button');
+			toggleButton.addEventListener('click', function() {
+				// Toggle the navbar collapsed state
+				navbar.classList.toggle('collapsed');
+
+				// Close all submenus if the navbar is collapsed
+				if (navbar.classList.contains('collapsed')) {
+					const submenus = document.querySelectorAll('.submenu');
+					submenus.forEach(function(submenu) {
+						submenu.style.display = 'none';
+					});
+				}
+			});
+		});
+	</script>
+}
+
