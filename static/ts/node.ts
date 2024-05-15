@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 
-// Global state to keep track of nodes and connections
-const globalState: { nodes: any[]; connections: any[] } = { nodes: [], connections: [] };
+// Global state to keep track of CVFunction objects
+let cvFunctions: CVFunction[] = [];
 
 // CANVAS //
 const canvasWidth: number = 1000,
@@ -31,33 +31,25 @@ const zoom: d3.ZoomBehavior<Element, unknown> = d3.zoom<Element, unknown>()
 // Apply the zoom behavior to the SVG
 svg.call(zoom as any);
 
-
-// Function to draw the grid lines
-function drawGrid() {
-    for (let i = 0; i <= numColumns; i++) {
-        g.append("line")
-            .attr("x1", i * gridSize)
-            .attr("y1", 0)
-            .attr("x2", i * gridSize)
-            .attr("y2", canvasHeight)
-            .style("stroke", "lightgrey")
-            .style("stroke-width", "1px");
-    }
-    for (let i = 0; i <= numRows; i++) {
-        g.append("line")
-            .attr("x1", 0)
-            .attr("y1", i * gridSize)
-            .attr("x2", canvasWidth)
-            .attr("y2", i * gridSize)
-            .style("stroke", "lightgrey")
-            .style("stroke-width", "1px");
-    }
+// Drawing grid lines
+for (let i = 0; i <= numColumns; i++) {
+    g.append("line")
+        .attr("x1", i * gridSize)
+        .attr("y1", 0)
+        .attr("x2", i * gridSize)
+        .attr("y2", canvasHeight)
+        .style("stroke", "lightgrey")
+        .style("stroke-width", "1px");
 }
-drawGrid();
-
-
-
-
+for (let i = 0; i <= numRows; i++) {
+    g.append("line")
+        .attr("x1", 0)
+        .attr("y1", i * gridSize)
+        .attr("x2", canvasWidth)
+        .attr("y2", i * gridSize)
+        .style("stroke", "lightgrey")
+        .style("stroke-width", "1px");
+}
 
 // NODE CLASS
 enum ImageType {
@@ -75,16 +67,16 @@ class NodeConnector {
     element: d3.Selection<SVGCircleElement, unknown, HTMLElement, any>;
     parent: NodeBlock;
     direction: ConnectorDirection;
-    type: ImageType;
+    ctype: ImageType;
     connection: NodeConnector | null;
     line: d3.Selection<SVGLineElement, unknown, HTMLElement, any> | null;
     port: number;
 
-    constructor(type: ImageType, direction: ConnectorDirection, portNumber: number, parent: NodeBlock) {
+    constructor(ctype: ImageType, direction: ConnectorDirection, portNumber: number, parent: NodeBlock) {
         this.parent = parent;
         this.element = g.append('circle')
                     .attr('cx', this.parent.x)
-                    .attr('cy', this.parent.y)
+                    .attr('cy',this.parent.y)
                     .attr('r', 4)
                     .style('fill', 'white')
                     .style('stroke', 'black')
@@ -92,17 +84,12 @@ class NodeConnector {
         this.element.datum(this);
         this.port = portNumber;
         this.direction = direction;
-        this.type = type;
+        this.ctype = ctype;
         this.connection = null;
         this.line = null;
 
         this.element
             .on("mousedown", (event) => this.mouseDownHandler(event));
-    }
-
-    removeLine() {
-        this.line?.remove();
-        this.line = null;
     }
 
     mouseDownHandler(event: MouseEvent) {
@@ -164,7 +151,7 @@ class NodeConnector {
         if (
                 (!this.connection && !otherConnector.connection)
                 && (this.direction !== otherConnector.direction)
-                && (this.type === ImageType.ANY || otherConnector.type === ImageType.ANY || this.type === otherConnector.type)
+                && (this.ctype === ImageType.ANY || otherConnector.ctype === ImageType.ANY || this.ctype === otherConnector.ctype)
                 && (this.parent !== otherConnector.parent)
             ) {
 
@@ -191,11 +178,6 @@ class NodeConnector {
             startConnector.line = connectionLine;
             endConnector.line = connectionLine;
 
-            // Save connection to global state
-            globalState.connections.push({
-                start: { node: startConnector.parent.name, port: startConnector.port },
-                end: { node: endConnector.parent.name, port: endConnector.port }
-            });
         } else {
             throw new Error("Cannot connect these connectors.");
         }
@@ -211,13 +193,31 @@ class NodeConnector {
 
             this.connection.connection = null;
             this.connection = null;
-
-            // Remove connection from global state
-            globalState.connections = globalState.connections.filter(conn =>
-                !(conn.start.node === this.parent.name && conn.start.port === this.port) &&
-                !(conn.end.node === this.parent.name && conn.end.port === this.port)
-            );
         }
+    }
+
+    toJSON() {
+        return {
+            ctype: this.ctype,
+            direction: this.direction,
+            port: this.port,
+            x: +this.element.attr('cx'),
+            y: +this.element.attr('cy'),
+            connection: this.connection ? {
+                parentName: this.connection.parent.name,
+                port: this.connection.port
+            } : null
+        };
+    }
+
+    removeLine() {
+        this.line?.remove();
+        this.line = null;
+    }
+
+    cleanup(): void {
+        this.disconnect();
+        this.element?.remove()
     }
 }
 
@@ -227,9 +227,9 @@ function showPopup(x: number, y: number, node: NodeBlock) {
     d3.select('#nodeValue').node().value = node.showOptions();
 
     d3.select('#valueForm').on('submit', function (event) {
-        event.preventDefault();
-        const newValue = d3.select('#nodeValue').node().value;
-        node.setValue(newValue);
+        //event.preventDefault();
+        //const newValue = d3.select('#nodeValue').node().value;
+        //node.setValue(newValue);
         popup.style('display', 'none');  // Hide after update
     });
 }
@@ -250,8 +250,8 @@ class CVFunction {
         this.outputs = outputs;
         this.node = new NodeBlock(this.name, this.color, this.options, x, y, this.inputs, this.outputs, false);
 
-        // Save node to global state
-        globalState.nodes.push(this.node.toJSON());
+        // Add to global state
+        cvFunctions.push(this);
     }
 }
 
@@ -311,11 +311,7 @@ class NodeBlock {
     }
 
     showOptions() {
-        return JSON.stringify(this.options);
-    }
-
-    setValue(newValue: string) {
-        this.options = JSON.parse(newValue);
+       return JSON.stringify(this.options);
     }
 
     draw(): void {
@@ -387,19 +383,87 @@ class NodeBlock {
             options: this.options,
             x: this.x,
             y: this.y,
-            inputs: this.inputs.map(input => ({ type: input.type, port: input.port })),
-            outputs: this.outputs.map(output => ({ type: output.type, port: output.port }))
+            inputs: this.inputs.map(input => input.toJSON()),
+            outputs: this.outputs.map(output => output.toJSON())
         };
     }
 
-    static fromJSON(json: any) {
-        const node = new NodeBlock(json.name, json.color, json.options, json.x, json.y, json.inputs.map(i => i.type), json.outputs.map(o => o.type), false);
-        node.inputs = json.inputs.map(input => new NodeConnector(input.type, ConnectorDirection.INPUT, input.port, node));
-        node.outputs = json.outputs.map(output => new NodeConnector(output.type, ConnectorDirection.OUTPUT, output.port, node));
-        node.updatePosition();
-        return node;
+    static fromJSON(data: any) {
+        const nodeBlock = new NodeBlock(
+            data.name,
+            data.color,
+            data.options,
+            data.x,
+            data.y,
+            data.inputs.map(input => input.ctype),
+            data.outputs.map(output => output.ctype),
+            false
+        );
+        return nodeBlock;
     }
 }
+
+// Save and Load functions
+function saveCanvas() {
+    const state = cvFunctions.map(func => ({
+        name: func.name,
+        color: func.color,
+        options: func.options,
+        node: func.node.toJSON()
+    }));
+
+    const json = JSON.stringify(state);
+    localStorage.setItem('canvasState', json);
+    console.log(json);
+}
+
+function loadCanvas() {
+    const json = localStorage.getItem('canvasState');
+    if (!json) {
+        return;
+    }
+    console.log(json);
+
+    const state = JSON.parse(json);
+    clearCanvas();
+    state.forEach((funcState: any) => {
+        const cvFunction = new CVFunction(
+            funcState.name,
+            funcState.color,
+            funcState.options,
+            funcState.node.x,
+            funcState.node.y,
+            funcState.node.inputs.map(input => input.ctype),
+            funcState.node.outputs.map(output => output.ctype)
+        );
+
+        // Restore connections
+        funcState.node.inputs.forEach((inputData: any, index: number) => {
+            if (inputData.connection) {
+                const targetFunc = cvFunctions.find(f => f.name === inputData.connection.parentName);
+                if (targetFunc) {
+                    const targetConnector = targetFunc.node.outputs.find(output => output.port === inputData.connection.port);
+                    if (targetConnector) {
+                        cvFunction.node.inputs[index].connect(targetConnector);
+                    }
+                }
+            }
+        });
+    });
+}
+
+function clearCanvas() {
+    cvFunctions.forEach(func => {
+        func.node.nodeElement.remove();
+        func.node.inputs.forEach(connector => connector.cleanup());
+        func.node.outputs.forEach(connector => connector.cleanup());
+    });
+    cvFunctions = [];
+}
+
+// Connect buttons to save and load functions
+document.getElementById("saveButton").addEventListener("click", saveCanvas);
+document.getElementById("loadButton").addEventListener("click", loadCanvas);
 
 // HANDLERS
 const shapes = d3.selectAll('.shape');
@@ -489,54 +553,4 @@ cvFunctionTemplates.forEach((template) => {
             event.dataTransfer.setData("function-name", template.name);
         });
 });
-
-// Functions to save and load the state
-function saveState() {
-    const state = JSON.stringify(globalState);
-    console.log(state);
-    localStorage.setItem('canvasState', state);
-}
-
-function loadState() {
-    const state = localStorage.getItem('canvasState');
-    if (state) {
-        const parsedState = JSON.parse(state);
-
-        // Clear current canvas and global state
-        g.selectAll('*').remove();
-        globalState.nodes = [];
-        globalState.connections = [];
-
-        // Redraw the grid
-        drawGrid();
-
-        // Redraw nodes
-        const nodes = parsedState.nodes.map((nodeData: any) => NodeBlock.fromJSON(nodeData));
-
-        nodes.forEach((node: NodeBlock) => {
-            globalState.nodes.push(node.toJSON());  // Ensure the nodes are correctly added back to globalState
-        });
-
-        // Redraw connections
-        parsedState.connections.forEach((connData: any) => {
-            const startNode = nodes.find((node: NodeBlock) => node.name === connData.start.node);
-            const endNode = nodes.find((node: NodeBlock) => node.name === connData.end.node);
-            if (startNode && endNode) {
-                const startConnector = startNode.outputs.find((output: NodeConnector) => output.port === connData.start.port);
-                const endConnector = endNode.inputs.find((input: NodeConnector) => input.port === connData.end.port);
-                if (startConnector && endConnector) {
-                    startConnector.connect(endConnector);
-                }
-            }
-        });
-    }
-}
-
-
-// Add buttons to save and load the state
-const saveButton = d3.select("#saveButton");
-saveButton.on("click", saveState);
-
-const loadButton = d3.select("#loadButton");
-loadButton.on("click", loadState);
 
