@@ -8,14 +8,14 @@ body, html {
 }
 
 #canvas-container {
-    width: 1000px;
-    height: 700px;
+    width: 1280px;
+    height: 720px;
     overflow: hidden;
     border: 1px black;
 }
 
 #drawer {
-    width: 1000px;
+    width: 1280px;
     height: 100px;
     overflow-x: scroll;
     border: 1px solid black;

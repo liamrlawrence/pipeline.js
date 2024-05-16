@@ -1,15 +1,14 @@
 import * as d3 from "d3";
 
-
-// Global state to keep track of CVFunction objects
-let cvFunctions: CVFunction[] = [];
-const cvFunctionCounts: { [key: string]: number } = {};
+// Global state to keep track of NodeBlock objects
+let nodeBlocks: NodeBlock[] = [];
+const nodeBlockCounts: { [key: string]: number } = {};
 
 // CANVAS //
-const canvasWidth: number = 1000,
-      canvasHeight: number = 700;
+const canvasWidth: number = 1280,
+      canvasHeight: number = 720;
 
-const gridSize: number = 25;
+const gridSize: number = 20;
 const numColumns: number = canvasWidth / gridSize;
 const numRows: number = canvasHeight / gridSize;
 
@@ -234,7 +233,6 @@ class NodeConnector {
     }
 }
 
-
 // Update the showPopup function to populate options
 function showPopup(x: number, y: number, node: NodeBlock) {
     const popup = d3.select('#popup');
@@ -265,6 +263,16 @@ function showPopup(x: number, y: number, node: NodeBlock) {
         popup.style('display', 'none'); // Hide after update
     });
 
+     // Clear any existing delete button and add the delete button
+    popup.select('#deleteButton').remove();
+    const deleteButton = popup.append('button')
+        .attr('id', 'deleteButton')
+        .text('Delete Node')
+        .on('click', () => {
+            node.cleanup(); // Correctly using arrow function to preserve 'this' context
+            popup.style('display', 'none'); // Hide the popup after deletion
+        });
+
     // Add a one-time event listener to the document to hide the popup on outside click
     d3.select(document).on('click.popup', function (event) {
         const isClickInside = (popup.node() as HTMLElement).contains(event.target as Node);
@@ -275,61 +283,42 @@ function showPopup(x: number, y: number, node: NodeBlock) {
     });
 }
 
-
-class CVFunction {
-    name: string;
-    ID: string;
-    color: string;
-    options: Options;
-    node: NodeBlock;
-    inputs: ImageType[];
-    outputs: ImageType[];
-
-    constructor(name: string, color: string, options: Options, x: number, y: number, inputs: ImageType[], outputs: ImageType[]) {
-        if (!cvFunctionCounts[name]) {
-            cvFunctionCounts[name] = 0;
-        }
-        cvFunctionCounts[name] += 1;
-        this.name = name;
-        this.ID = `${name}-${cvFunctionCounts[name]}`;
-        this.color = color;
-        this.options = options;
-        this.inputs = inputs;
-        this.outputs = outputs;
-        this.node = new NodeBlock(this.ID, this.color, this.options, x, y, this.inputs, this.outputs, false);
-
-        // Add to global state
-        cvFunctions.push(this);
-    }
-}
-
 class NodeBlock {
+    stageName: string;
     ID: string;
-    color: string;
     options: Options;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
     inputs: NodeConnector[];
     outputs: NodeConnector[];
-    nodeElement: d3.Selection<SVGRectElement, unknown, HTMLElement, any>;
-    enableGui: boolean;
+    color: string;
+    textColor: string;
+    width: number;
+    height: number;
+    x: number;
+    y: number;
     lastX: number;
     lastY: number;
+    nodeElement: d3.Selection<SVGRectElement, unknown, HTMLElement, any>;
+    textElement: d3.Selection<SVGTextElement, unknown, HTMLElement, any>;
+    enableGui: boolean;
 
-    constructor(ID: string, color: string, options: Options, x: number, y: number, inputs: ImageType[], outputs: ImageType[], enableGui: boolean) {
-        this.ID = ID;
+    constructor(stage_name: string, options: Options, inputs: ImageType[], outputs: ImageType[], color: string, textColor: string, x: number, y: number, enableGui: boolean) {
+        if (!nodeBlockCounts[stage_name]) {
+            nodeBlockCounts[stage_name] = 0;
+        }
+        nodeBlockCounts[stage_name] += 1;
+        this.stageName = stage_name;
+        this.ID = `${stage_name}-${nodeBlockCounts[stage_name]}`;
+        this.options = { ...options };
+        this.inputs = [];
+        this.outputs = [];
         this.color = color;
-        this.options = options;
+        this.textColor = textColor;
         this.x = x;
         this.y = y;
         this.lastX = x;
         this.lastY = y;
-        this.width = 50;        // TODO: Calculate based on inputs
-        this.height = 50;
-        this.inputs = [];
-        this.outputs = [];
+        this.width = 40;        // TODO: Calculate based on inputs
+        this.height = 40;
         this.enableGui = enableGui;
         this.draw();
 
@@ -338,7 +327,7 @@ class NodeBlock {
             const input = new NodeConnector(
                 inputs[i],
                 ConnectorDirection.INPUT,
-                i+1,
+                i + 1,
                 this
             );
             this.inputs.push(input);
@@ -347,19 +336,23 @@ class NodeBlock {
             const output = new NodeConnector(
                 outputs[i],
                 ConnectorDirection.OUTPUT,
-                i+1,
+                i + 1,
                 this
             );
             this.outputs.push(output);
         }
         this.updatePosition();
 
+        // Create hooks TODO: Move?
         this.nodeElement.on('contextmenu', (event, d) => {
             event.preventDefault();  // Prevent the default context menu
             const x = event.pageX;
             const y = event.pageY;
             showPopup(x, y, this);
         });
+
+        // Add to global state
+        nodeBlocks.push(this);
     }
 
     showOptions() {
@@ -379,19 +372,19 @@ class NodeBlock {
                 .on('drag', event => this.drag(event))
                 .on('end', event => this.endDrag(event)));
 
-        this.nodeElement.append('text')
+        this.textElement = g.append('text')
             .attr('x', this.x + this.width / 2)
             .attr('y', this.y + this.height / 2)
-            .attr('dy', '.35em') // Vertical align middle
-            .attr('text-anchor', 'middle') // Horizontal align center
+            .attr('dy', '.35em')            // Vertical align middle
+            .attr('text-anchor', 'middle')  // Horizontal align center
+            .style('fill', this.textColor)
+            .style('user-select', 'none')   // Disable highlighting
             .text(this.ID);
     }
 
     startDrag(event): void {
         d3.select(this.nodeElement.node()).classed('dragging', true);
     }
-
-
 
     drag(event): void {
         let newX = event.x - this.width / 2;
@@ -506,9 +499,8 @@ class NodeBlock {
     }
 
     detectCollision(x: number, y: number): { node: NodeBlock, direction: 'left' | 'right' | 'top' | 'bottom' } | null {
-        for (const func of cvFunctions) {
-            if (func.node !== this) {
-                const node = func.node;
+        for (const node of nodeBlocks) {
+            if (node !== this) {
                 if (
                     x < node.x + node.width &&
                     x + this.width > node.x &&
@@ -532,9 +524,10 @@ class NodeBlock {
         return null;
     }
 
-
     updatePosition(): void {
         this.nodeElement.attr('x', this.x).attr('y', this.y);
+        this.updateTextPosition();
+
         this.inputs.forEach((input, index) => {
             const cx = this.x;
             const cy = this.y + this.height / (this.inputs.length + 1) * (index + 1);
@@ -553,42 +546,74 @@ class NodeBlock {
         });
     }
 
+    updateTextPosition(): void {
+        this.adjustFontSizeToFit();
+
+        const textX = this.x + this.width / 2;
+        const textY = this.y + this.height / 2;
+        this.textElement
+            .attr('x', textX)
+            .attr('y', textY);
+    }
+
+    adjustFontSizeToFit(): void {
+        const maxWidth = this.width - 10;
+
+        let fontSize = parseFloat(this.textElement.style('font-size'));
+        if (isNaN(fontSize)) {
+            fontSize = 16;
+        }
+
+        let textLength = this.textElement.node().getComputedTextLength();
+        while (textLength > maxWidth && fontSize > 1) {
+            fontSize -= 1;
+            this.textElement.style('font-size', `${fontSize}px`);
+            textLength = this.textElement.node().getComputedTextLength();
+        }
+    }
+
     toJSON() {
         return {
+            stage_name: this.stageName,
             ID: this.ID,
-            color: this.color,
             options: this.options,
+            inputs: this.inputs.map(input => input.toJSON()),
+            outputs: this.outputs.map(output => output.toJSON()),
+            color: this.color,
+            text_color: this.textColor,
             x: this.x,
             y: this.y,
-            inputs: this.inputs.map(input => input.toJSON()),
-            outputs: this.outputs.map(output => output.toJSON())
         };
     }
 
     static fromJSON(data: any) {
         const nodeBlock = new NodeBlock(
-            data.ID,
-            data.color,
+            data.stage_name,
             data.options,
-            data.x,
-            data.y,
             data.inputs.map(input => input.ctype),
             data.outputs.map(output => output.ctype),
-            false
+            data.color,
+            data.text_color,
+            data.x,
+            data.y,
+            false,
         );
         return nodeBlock;
+    }
+
+    cleanup() {
+        this.nodeElement?.remove();
+        this.textElement?.remove();
+        this.inputs.forEach(connector => connector.cleanup());
+        this.outputs.forEach(connector => connector.cleanup());
+        nodeBlocks = nodeBlocks.filter(n => n !== this);
+        nodeBlockCounts[this.stageName]--;
     }
 }
 
 // Save and Load functions
 function saveCanvas() {
-    const state = cvFunctions.map(func => ({
-        name: func.name,
-        ID: func.ID,
-        color: func.color,
-        options: func.options,
-        node: func.node.toJSON()
-    }));
+    const state = nodeBlocks.map(block => block.toJSON());
 
     const json = JSON.stringify(state);
     localStorage.setItem('canvasState', json);
@@ -605,33 +630,25 @@ function loadCanvas() {
     const state = JSON.parse(json);
     clearCanvas();
 
-    // Create a mapping of IDs to CVFunction objects
-    const idToFunction: { [key: string]: CVFunction } = {};
+    // Create a mapping of IDs to NodeBlock objects
+    const idToBlock: { [key: string]: NodeBlock } = {};
 
-    // First, recreate all CVFunction objects without restoring connections
-    state.forEach((funcState: any) => {
-        const cvFunction = new CVFunction(
-            funcState.name,
-            funcState.color,
-            funcState.options,
-            funcState.node.x,
-            funcState.node.y,
-            funcState.node.inputs.map(input => input.ctype),
-            funcState.node.outputs.map(output => output.ctype)
-        );
-        idToFunction[cvFunction.ID] = cvFunction;
+    // First, recreate all NodeBlock objects without restoring connections
+    state.forEach((blockState: any) => {
+        const nodeBlock = NodeBlock.fromJSON(blockState);
+        idToBlock[nodeBlock.ID] = nodeBlock;
     });
 
     // Then, restore all connections
-    state.forEach((funcState: any) => {
-        const cvFunction = idToFunction[funcState.ID];
-        funcState.node.inputs.forEach((inputData: any, index: number) => {
+    state.forEach((blockState: any) => {
+        const nodeBlock = idToBlock[blockState.ID];
+        blockState.inputs.forEach((inputData: any, index: number) => {
             if (inputData.connection) {
-                const targetFunction = idToFunction[inputData.connection.parentID];
-                if (targetFunction) {
-                    const targetConnector = targetFunction.node.outputs.find(output => output.port === inputData.connection.port);
+                const targetBlock = idToBlock[inputData.connection.parentID];
+                if (targetBlock) {
+                    const targetConnector = targetBlock.outputs.find(output => output.port === inputData.connection.port);
                     if (targetConnector) {
-                        cvFunction.node.inputs[index].connect(targetConnector);
+                        nodeBlock.inputs[index].connect(targetConnector);
                     }
                 }
             }
@@ -640,19 +657,15 @@ function loadCanvas() {
 }
 
 function clearCanvas() {
-    cvFunctions.forEach(func => {
-        func.node.nodeElement.remove();
-        func.node.inputs.forEach(connector => connector.cleanup());
-        func.node.outputs.forEach(connector => connector.cleanup());
-    });
-    cvFunctions = [];
+    nodeBlocks.forEach(block => block.cleanup());
+    nodeBlocks = [];
     // Reset the counts
-    for (const key in cvFunctionCounts) {
-        if (cvFunctionCounts.hasOwnProperty(key)) {
-            cvFunctionCounts[key] = 0;
+    for (const key in nodeBlockCounts) {
+        if (nodeBlockCounts.hasOwnProperty(key)) {
+            nodeBlockCounts[key] = 0;
         }
     }
-    console.log(cvFunctions);
+    console.log(nodeBlocks);
 }
 
 // HANDLERS
@@ -672,9 +685,9 @@ svg.on('dragover', (event) => {
     const point = d3.pointer(event, g.node());
     const x = Math.floor(point[0] / gridSize) * gridSize;
     const y = Math.floor(point[1] / gridSize) * gridSize;
-    const cvTemplate = cvFunctionTemplates.find(func => func.name === functionName);
-    if (cvTemplate) {
-        new CVFunction(cvTemplate.name, cvTemplate.color, cvTemplate.options, x, y, cvTemplate.inputs, cvTemplate.outputs);
+    const nodeTemplate = nodeTemplates.find(func => func.stage_name === functionName);
+    if (nodeTemplate) {
+        new NodeBlock(nodeTemplate.stage_name, nodeTemplate.options, nodeTemplate.inputs, nodeTemplate.outputs, nodeTemplate.color, nodeTemplate.text_color, x, y, false);
     }
 });
 
@@ -690,35 +703,37 @@ interface Options {
     [key: string]: number;
 }
 
-// CVFunction templates for the drawer
-const cvFunctionTemplates: { name: string, color: string, options: Options, inputs: ImageType[], outputs: ImageType[] }[] = [
+// NodeBlock templates for the drawer
+const nodeTemplates: { stage_name: string, options: Options, inputs: ImageType[], outputs: ImageType[], color: string, text_color: string }[] = [
     {
-        name: "Input",
-        color: "silver",
+        stage_name: "Input",
         options: {},
         inputs: [],
-        outputs: [ImageType.IMAGE]
+        outputs: [ImageType.IMAGE],
+        color: "silver",
+        text_color: "black",
     },
     {
-        name: "Output",
-        color: "silver",
+        stage_name: "Output",
         options: {},
         inputs: [ImageType.IMAGE],
-        outputs: []
+        outputs: [],
+        color: "silver",
+        text_color: "black",
     },
     {
-        name: "Blur",
-        color: "blue",
+        stage_name: "Blur",
         options: {
-            "kernelSize": 0,
-            "strength": 50
+            "kernel_size": 1,
+            "strength": 1
         },
         inputs: [ImageType.IMAGE],
-        outputs: [ImageType.IMAGE]
+        outputs: [ImageType.IMAGE],
+        color: "blue",
+        text_color: "white",
     },
     {
-        name: "Threshold",
-        color: "green",
+        stage_name: "Threshold",
         options: {
             "min_h": 0,
             "min_s": 0,
@@ -728,50 +743,78 @@ const cvFunctionTemplates: { name: string, color: string, options: Options, inpu
             "max_v": 255,
         },
         inputs: [ImageType.IMAGE],
-        outputs: [ImageType.IMAGE]
+        outputs: [ImageType.IMAGE],
+        color: "green",
+        text_color: "white",
     },
     {
-        name: "Edge Detection",
+        stage_name: "Contours-Circle",
+        options: {
+            "min_radius": 400,
+        },
+        inputs: [ImageType.IMAGE],
+        outputs: [ImageType.IMAGE, ImageType.MASK],
         color: "red",
+        text_color: "white",
+    },
+    {
+        stage_name: "Contours-ConvexHull",
         options: {
             "min_area": 400,
         },
         inputs: [ImageType.IMAGE],
-        outputs: [ImageType.IMAGE, ImageType.MASK]
+        outputs: [ImageType.IMAGE, ImageType.MASK],
+        color: "red",
+        text_color: "white",
     },
     {
-        name: "Bitwise AND",
-        color: "teal",
+        stage_name: "Bitwise AND",
         options: {},
         inputs: [ImageType.MASK, ImageType.IMAGE],
-        outputs: [ImageType.IMAGE]
+        outputs: [ImageType.IMAGE],
+        color: "teal",
+        text_color: "white",
     },
+    {
+        stage_name: "Dilate",
+        options: {
+            "kernel_size": 1,
+            "iterations": 1
+        },
+        inputs: [ImageType.IMAGE],
+        outputs: [ImageType.IMAGE],
+        color: "blue",
+        text_color: "white",
+    },
+    {
+        stage_name: "CLAHE",
+        options: {
+            "clip_limit": 2,
+            "tile_grid_size": 2
+        },
+        inputs: [ImageType.IMAGE],
+        outputs: [ImageType.IMAGE],
+        color: "blue",
+        text_color: "white",
+    }
 ];
 
 const drawer = d3.select("#drawer");
 
-cvFunctionTemplates.forEach((template) => {
-    const cvElement = drawer.append("div")
+nodeTemplates.forEach((template) => {
+    const nodeElement = drawer.append("div")
         .attr("class", "cv-function")
         .attr("draggable", true)
         .style("background-color", template.color)
-        .text(template.name)
+        .text(template.stage_name)
         .on("dragstart", (event) => {
-            event.dataTransfer.setData("function-name", template.name);
+            event.dataTransfer.setData("function-name", template.stage_name);
         });
 });
 
-
-
 // Save the canvas state to a file
 function saveCanvasToFile() {
-    const state = cvFunctions.map(func => ({
-        name: func.name,
-        ID: func.ID,
-        color: func.color,
-        options: func.options,
-        node: func.node.toJSON()
-    }));
+    const state = nodeBlocks.map(block => block.toJSON());
 
     const json = JSON.stringify(state);
     const blob = new Blob([json], { type: "application/json" });
@@ -784,7 +827,6 @@ function saveCanvasToFile() {
     URL.revokeObjectURL(url);
 }
 
-
 // Load the canvas state from a file and add to the existing state
 function loadCanvasFromFile(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -796,40 +838,32 @@ function loadCanvasFromFile(event: Event) {
         const json = e.target?.result as string;
         const state = JSON.parse(json);
 
-        // Create a mapping of old IDs to new IDs and CVFunction objects
+        // Create a mapping of old IDs to new IDs and NodeBlock objects
         const oldToNewIDMap: { [key: string]: string } = {};
-        const idToFunction: { [key: string]: CVFunction } = {};
+        const idToBlock: { [key: string]: NodeBlock } = {};
 
-        // First, recreate all CVFunction objects without restoring connections
-        state.forEach((funcState: any) => {
-            const cvFunction = new CVFunction(
-                funcState.name,
-                funcState.color,
-                funcState.options,
-                funcState.node.x,
-                funcState.node.y,
-                funcState.node.inputs.map((input: any) => input.ctype),
-                funcState.node.outputs.map((output: any) => output.ctype)
-            );
-            idToFunction[cvFunction.ID] = cvFunction;
-            oldToNewIDMap[funcState.ID] = cvFunction.ID
+        // First, recreate all NodeBlock objects without restoring connections
+        state.forEach((blockState: any) => {
+            const nodeBlock = NodeBlock.fromJSON(blockState);
+            idToBlock[nodeBlock.ID] = nodeBlock;
+            oldToNewIDMap[blockState.ID] = nodeBlock.ID;
         });
 
         console.log(oldToNewIDMap);
 
         // Then, restore all connections
-        state.forEach((funcState: any) => {
-            const newID = oldToNewIDMap[funcState.ID];
-            const cvFunction = idToFunction[newID];
-            funcState.node.inputs.forEach((inputData: any, index: number) => {
+        state.forEach((blockState: any) => {
+            const newID = oldToNewIDMap[blockState.ID];
+            const nodeBlock = idToBlock[newID];
+            blockState.inputs.forEach((inputData: any, index: number) => {
                 if (inputData.connection) {
                     const targetOldID = inputData.connection.parentID;
                     const targetNewID = oldToNewIDMap[targetOldID];
-                    const targetFunction = idToFunction[targetNewID];
-                    if (targetFunction) {
-                        const targetConnector = targetFunction.node.outputs.find(output => output.port === inputData.connection.port);
+                    const targetBlock = idToBlock[targetNewID];
+                    if (targetBlock) {
+                        const targetConnector = targetBlock.outputs.find(output => output.port === inputData.connection.port);
                         if (targetConnector) {
-                            cvFunction.node.inputs[index].connect(targetConnector);
+                            nodeBlock.inputs[index].connect(targetConnector);
                         }
                     }
                 }
@@ -841,8 +875,6 @@ function loadCanvasFromFile(event: Event) {
     };
     reader.readAsText(file);
 }
-
-
 
 // Connect buttons to save and load functions
 document.getElementById("saveButton").addEventListener("click", saveCanvas);
