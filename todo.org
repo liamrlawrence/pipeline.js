@@ -9,25 +9,27 @@
     - [ ] Group nodes
 
 
-* TODO Save configuration [0/2]
-  - [-] Save [1/2]
+* DONE Save configuration [2/2]
+  CLOSED: [2024-05-15 Wed 17:52]
+  - [X] Save [2/2]
     - [X] Save to browser
-    - [ ] Save to file
-  - [-] Load [1/3]
+    - [X] Save to file
+  - [X] Load [2/2]
     - [X] Load from browser
-    - [ ] Load from file
-    - [ ] Default load, automatically assign (x,y)
+    - [X] Load from file
 
 
-* TODO Python Parser [1/2]
+* TODO Python Parser [2/3]
   - [X] Parse save-string
-  - [ ] Construct pipeline & execute
+  - [X] Construct pipeline
+  - [ ] Execute OpenCV
 
 
 * TODO Aesthetics [0/2]
-  - [ ] NodeBlocks [0/2]
+  - [-] NodeBlocks [1/3]
     - [ ] Text on block names
     - [ ] Better looking
+    - [X] Collision physics
   - [ ] Drawer [0/2]
     - [ ] Categories
     - [ ] Better looking
