@@ -262,7 +262,6 @@ function showPopup(x: number, y: number, node: NodeBlock) {
         });
         node.showOptions();
         popup.style('display', 'none'); // Hide after update
-        saveRunCanvas();                // Run canvas
     });
 
      // Clear any existing delete button and add the delete button
@@ -886,49 +885,4 @@ document.getElementById("fileInput").addEventListener("change", loadCanvasFromFi
 document.getElementById("loadFromFileButton").addEventListener("click", () => {
     document.getElementById("fileInput").click();
 });
-
-
-document.getElementById("runCanvas").addEventListener("click", saveRunCanvas);
-async function saveRunCanvas() {
-    const state = nodeBlocks.map(block => block.toJSON());
-    const json = JSON.stringify({canvas: state});
-    console.log(typeof state);
-    console.log(json);
-    fetch("https://liaml.dev/api/save_data", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: json,
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Success:", data);
-    })
-    .catch((error) => {
-        console.error("Error:", error);
-    });
-
-    refresh_preview();
-}
-
-async function refresh_preview() {
-    try {
-        const response = await fetch('https://liaml.dev/api/image', {
-            method: 'GET',
-            headers: {
-            'Content-Type': 'image/png'
-            }
-        });
-        if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
-        }
-
-        const blob = await response.blob();
-        const newImageUrl = URL.createObjectURL(blob);
-        document.getElementById('myImage').src = newImageUrl;
-    } catch (error) {
-        console.error('There was a problem with the fetch operation:', error);
-    }
-}
 

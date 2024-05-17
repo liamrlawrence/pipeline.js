@@ -4,19 +4,16 @@
 	],
 	"watchers": [
 		{
-			"label": "[Go]",
-			"extensions": [".go", ".templ"],
-			"ignore_patterns": ["_templ\\.go"],
-			"include_dir": ["cmd", "internal"],
-			"build_command": "make go",
-			"run_command": "./tmp/main"
-		},
-		{
 			"label": "[Web]",
 			"extensions": [".ts"],
 			"ignore": [],
 			"dir": ".",
 			"build_command": "make ts"
+		},
+		{
+			"label": "[Python]",
+			"extensions": [".py"],
+			"run_command": "streamlit run scripts/app.py --server.port=8501 --server.address=0.0.0.0"
 		}
 	]
 }

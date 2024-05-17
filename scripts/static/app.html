@@ -1,15 +1,6 @@
-package views
 
-
-templ PageDemo() {
-	<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta charset="UTF-8"></meta>
-		<title>D3 Canvas with Gridlines and Draggable CVFunctions</title>
+	<div>
 		<link rel="stylesheet" type="text/css" href="/static/css/styles.css"></link>
-	</head>
-	<body>
 		<div id="canvas-container"></div>
 		<div id="drawer"></div>
 		<button id="saveButton">Save Canvas</button>
@@ -18,7 +9,7 @@ templ PageDemo() {
 		<input type="file" id="fileInput" style="display:none"></input>
 		<button id="saveToFileButton">Save to File</button>
 		<button id="loadFromFileButton">Load from File</button>
-		<script src="/static/dist/node.mjs"></script>
+		<!--<script src="./static/dist/node.mjs"></script>-->
 		<div id="popup" style="display:none; position: absolute; border: 1px solid black; background: white; padding: 10px;">
 			<form id="valueForm">
 				<div id="optionsContainer"></div>
@@ -28,7 +19,5 @@ templ PageDemo() {
 		<div>
 			<img src="/static/output.png" width="640" height="480"></img>
 		</div>
-	</body>
-	</html>
-}
+	</div>
 

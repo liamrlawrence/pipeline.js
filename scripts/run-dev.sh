@@ -20,9 +20,12 @@ sudo docker run \
     -it \
     -e "TERM=xterm-256color" \
     -p 7654:8080 \
+    -p 7655:8501 \
+    -p 7656:8007 \
     -v $(pwd)/cmd:/app/cmd:ro,cached \
     -v $(pwd)/internal:/app/internal:rw,cached \
     -v $(pwd)/static:/app/static:rw,cached \
+    -v $(pwd)/scripts:/app/scripts:rw,cached \
     -v $(pwd)/node_modules:/node_modules_cache:rw,cached \
     --network nginx-net \
     --ip 172.30.0.123 \

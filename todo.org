@@ -19,15 +19,16 @@
     - [X] Load from file
 
 
-* TODO Python Parser [2/3]
+* DONE Python Parser [3/3]
+  CLOSED: [2024-05-16 Thu 16:48]
   - [X] Parse save-string
   - [X] Construct pipeline
-  - [ ] Execute OpenCV
+  - [X] Execute OpenCV
 
 
 * TODO Aesthetics [0/2]
-  - [-] NodeBlocks [1/3]
-    - [ ] Text on block names
+  - [-] NodeBlocks [2/3]
+    - [X] Text on block names
     - [ ] Better looking
     - [X] Collision physics
   - [ ] Drawer [0/2]
@@ -35,7 +36,15 @@
     - [ ] Better looking
 
 
-* TODO Streamlit [0/2]
-  - [ ] Run JS node window
-  - [ ] Use JS node window to update options
+* DONE Streamlit [4/6]
+  CLOSED: [2024-05-17 Fri 12:57]
+  - [X] Run JS node window
+  - [X] Use JS node window to update options
+  - [X] Run canvas
+  - [X] Run immediately on option change
+  - [ ] Load batch of images and appropriately name
+  - [ ] Save CSV file after processing
+  - [ ] QC step to click through and check images
+  - [ ] Only rebuild pipeline if connections change
+  - [ ] Able to live-tune parameters in continously running pipeline
 

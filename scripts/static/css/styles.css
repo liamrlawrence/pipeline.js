@@ -4,49 +4,24 @@ body, html {
     width: 100%;
     height: 100%;
     display: flex;
-    flex-direction: column;
-}
-
-#container {
-    display: flex;
-    width: 100%;
-    /*height: 100%;*/
+    flex-direction: column; /* Ensures the drawer is below the canvas */
 }
 
 #canvas-container {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 1280px;
     height: 720px;
     overflow: hidden;
-    border: 1px solid black;
-    padding: 10px; /* Optional: Add some padding for better appearance */
-}
-
-#image-container {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border: 1px solid black;
-    padding: 10px; /* Optional: Add some padding for better appearance */
-}
-
-#image-container img {
-    max-width: 100%;
-    max-height: 720px;
-    object-fit: contain; /* Ensure the image fits within its container */
+    border: 1px black;
 }
 
 #drawer {
-    width: 100%;
+    width: 1280px;
     height: 100px;
     overflow-x: scroll;
     border: 1px solid black;
     display: flex;
     align-items: center;
-    background-color: #f8f8f8;
+    background-color: #f8f8f8; /* Adds a background color to make it visible */
 }
 
 .cv-function {
@@ -63,7 +38,7 @@ body, html {
 
 .dragging {
     opacity: 0.5;
-    z-index: 1000;
+    z-index: 1000; /* Very high z-index to ensure it's above everything else when dragging */
 }
 
 #popup {
@@ -73,7 +48,7 @@ body, html {
     background: white;
     padding: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    z-index: 1001;
+    z-index: 1001; /* Make sure it's above other elements */
 }
 
 #optionsContainer {
