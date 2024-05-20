@@ -5,8 +5,9 @@
     - [ ] enable_gui: flag
   - [X] Floating popup to edit options
   - [ ] Toggle gui button on Block?
-  - [ ] Pipeline Objects [0/1]
+  - [-] Pipeline Objects [1/2]
     - [ ] Group nodes
+    - [X] Save & reload individual clusters
 
 
 * DONE Save configuration [2/2]
@@ -34,10 +35,13 @@
   - [ ] Drawer [0/2]
     - [ ] Categories
     - [ ] Better looking
+  - [ ] Site [/]
+    - [ ] Good looking page
+    - [ ] Toggle to hide pipeline
+    - [ ] ShowGUI popups in good location
 
 
-* DONE Streamlit [4/6]
-  CLOSED: [2024-05-17 Fri 12:57]
+* TODO Streamlit [4/10]
   - [X] Run JS node window
   - [X] Use JS node window to update options
   - [X] Run canvas
@@ -47,4 +51,5 @@
   - [ ] QC step to click through and check images
   - [ ] Only rebuild pipeline if connections change
   - [ ] Able to live-tune parameters in continously running pipeline
+  - [ ] History buffer to undo / redo changes
 

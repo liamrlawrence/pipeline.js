@@ -358,7 +358,7 @@ drawer_html = f'''
 '''
 
 # Embed the HTML in Streamlit
-components.html(drawer_html, height=1500, width=1500)
+components.html(drawer_html, height=1500, width=1800)
 
 
 # Additional Streamlit content
